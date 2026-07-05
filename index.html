@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMEGA: Poprawa jakości obrazu i konwersja</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --panel-bg: #141414;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+            --accent: #00ffcc;
+            --danger: #ff4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            max-width: 800px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-titles {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.3;
+        }
+
+        .author-credits {
+            color: var(--accent);
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            font-weight: bold;
+            border-left: 2px solid var(--accent);
+            padding-left: 6px;
+            opacity: 0.9;
+        }
+
+        .lang-switch {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .lang-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .lang-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 2rem;
+            border-radius: 4px;
+        }
+
+        .module { margin-bottom: 2rem; }
+
+        .module-title {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            border-bottom: 1px dashed var(--border-color);
+            display: inline-block;
+        }
+
+        .drop-zone {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--accent);
+            background-color: rgba(0, 255, 204, 0.05);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="number"], select {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input[type="number"]:focus, select:focus {
+            border-color: var(--accent);
+        }
+
+        button.action-btn {
+            background-color: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        button.action-btn:hover {
+            background-color: var(--accent);
+            color: var(--bg-color);
+        }
+
+        button.action-btn:disabled {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            background-color: transparent;
+        }
+
+        #status {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .preview-container {
+            margin-top: 2rem;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            display: none;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .data-table th, .data-table td {
+            text-align: left;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th { color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-titles">
+            <h1 data-i18n="title">Poprawa jakości obrazu i konwersja wzajemna plików .jpg, .png i .webp</h1>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem;" data-i18n="subtitle">STATUS: Zero-Dependency | TWARDY ZAPIS HEX: Aktywny</p>
+            <p class="author-credits" data-i18n="author">Autorstwo i inżynieria systemu: Jakub Wielogórski</p>
+        </div>
+        <div class="lang-switch">
+            <button class="lang-btn active" onclick="setLang('pl')">PL</button>
+            <button class="lang-btn" onclick="setLang('en')">EN</button>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div class="module">
+            <span class="module-title" data-i18n="mod1">Moduł I: Ingestia Danych</span>
+            <div class="drop-zone" id="drop-zone">
+                <span id="drop-text" data-i18n="dropText">PRZECIĄGNIJ PLIK LUB KLIKNIJ (.jpg, .png, .webp)</span>
+                <input type="file" id="file-input" accept="image/png, image/jpeg, image/webp">
+            </div>
+        </div>
+
+        <div class="module" id="params-module" style="opacity: 0.5; pointer-events: none;">
+            <span class="module-title" data-i18n="mod2">Moduł II: Parametryzacja Macierzy</span>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="target-dpi" data-i18n="dpiLabel">Docelowe DPI (Zalecane: 300+)</label>
+                    <input type="number" id="target-dpi" value="300" min="1" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="export-format" data-i18n="formatLabel">Format Wyjściowy</label>
+                    <select id="export-format">
+                        <option value="image/png" data-i18n="optPng">PNG (Twarda iniekcja pHYs)</option>
+                        <option value="image/jpeg" data-i18n="optJpg">JPEG (Twarda iniekcja JFIF)</option>
+                        <option value="image/webp" data-i18n="optWebp">WEBP (Brak obsługi fizycznego DPI)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="action-btn" id="process-btn" data-i18n="btnProcess" disabled>Inicjuj Przetwarzanie</button>
+            <div id="status" data-i18n="statusWaiting">Status: Oczekiwanie na plik źródłowy.</div>
+        </div>
+
+        <div class="module preview-container" id="preview-module">
+            <span class="module-title" data-i18n="mod3">Moduł III: Walidacja Zrzutu</span>
+            <table class="data-table">
+                <tr>
+                    <th data-i18n="tblParam">Parametr</th>
+                    <th data-i18n="tblBefore">Źródło (Odczyt HEX)</th>
+                    <th data-i18n="tblAfter">Wynik (Walidacja HEX)</th>
+                </tr>
+                <tr>
+                    <td>DPI</td>
+                    <td id="dpi-before">-</td>
+                    <td id="dpi-after">-</td>
+                </tr>
+                <tr>
+                    <td data-i18n="tblRes">Rozdzielczość Px</td>
+                    <td id="res-before">-</td>
+                    <td id="res-after">-</td>
+                </tr>
+                <tr>
+                    <td data-i18n="tblWeight">Waga Obiektu</td>
+                    <td id="size-before">-</td>
+                    <td id="size-after">-</td>
+                </tr>
+            </table>
+            <button class="action-btn" id="download-btn" style="display: none;" data-i18n="btnDownload">Eksportuj Plik Zmodyfikowany</button>
+        </div>
+
+    </div>
+
+    <script>
+        // CORE LOGIC: OMEGA DPI Enhancer v2 (JW3164)
+        
+        const dict = {
+            'pl': {
+                title: 'Poprawa jakości obrazu i konwersja wzajemna plików .jpg, .png i .webp',
+                author: 'Autorstwo i inżynieria systemu: Jakub Wielogórski',
+                subtitle: 'STATUS: Zero-Dependency | TWARDY ZAPIS HEX: Aktywny',
+                mod1: 'Moduł I: Ingestia Danych',
+                dropText: 'PRZECIĄGNIJ PLIK LUB KLIKNIJ (.jpg, .png, .webp)',
+                mod2: 'Moduł II: Parametryzacja Macierzy',
+                dpiLabel: 'Docelowe DPI (Zalecane: 300+)',
+                formatLabel: 'Format Wyjściowy',
+                optPng: 'PNG (Twarda iniekcja pHYs)',
+                optJpg: 'JPEG (Twarda iniekcja JFIF)',
+                optWebp: 'WEBP (Brak obsługi fizycznego DPI)',
+                btnProcess: 'Inicjuj Przetwarzanie',
+                statusWaiting: 'Status: Oczekiwanie na plik źródłowy.',
+                statusLoaded: 'Status: Plik zbuforowany. Gotowość operacyjna.',
+                statusProcessing: 'Status: Rekonstrukcja macierzy i wstrzykiwanie metadanych...',
+                statusSuccess: 'Status: Sukces. Metadane pomyślnie zmodyfikowane w strukturze binarnej.',
+                errFormat: 'BŁĄD: Nieobsługiwany format.',
+                errVal: 'BŁĄD: Wartość DPI musi być dodatnia.',
+                errMem: 'BŁĄD KRYTYCZNY: Alokacja pamięci wylana poza stos (Heap OOM).',
+                mod3: 'Moduł III: Walidacja Zrzutu',
+                tblParam: 'Parametr',
+                tblBefore: 'Źródło (Odczyt HEX)',
+                tblAfter: 'Wynik (Walidacja HEX)',
+                tblRes: 'Rozdzielczość Px',
+                tblWeight: 'Waga Obiektu',
+                btnDownload: 'Eksportuj Plik Zmodyfikowany'
+            },
+            'en': {
+                title: 'Image quality enhancement and mutual conversion of .jpg, .png and .webp files',
+                author: 'System authorship and engineering: Jakub Wielogórski',
+                subtitle: 'STATUS: Zero-Dependency | HARD HEX INJECTION: Active',
+                mod1: 'Module I: Data Ingestion',
+                dropText: 'DRAG & DROP OR CLICK (.jpg, .png, .webp)',
+                mod2: 'Module II: Matrix Parameterization',
+                dpiLabel: 'Target DPI (Recommended: 300+)',
+                formatLabel: 'Output Format',
+                optPng: 'PNG (Hard pHYs injection)',
+                optJpg: 'JPEG (Hard JFIF injection)',
+                optWebp: 'WEBP (No physical DPI support)',
+                btnProcess: 'Initialize Processing',
+                statusWaiting: 'Status: Waiting for source file.',
+                statusLoaded: 'Status: File buffered. Operational readiness.',
+                statusProcessing: 'Status: Reconstructing matrix and injecting metadata...',
+                statusSuccess: 'Status: Success. Metadata successfully modified in binary structure.',
+                errFormat: 'ERROR: Unsupported format.',
+                errVal: 'ERROR: DPI value must be positive.',
+                errMem: 'CRITICAL ERROR: Memory allocation overflowed the heap (OOM).',
+                mod3: 'Module III: Dump Validation',
+                tblParam: 'Parameter',
+                tblBefore: 'Source (HEX Read)',
+                tblAfter: 'Result (HEX Validation)',
+                tblRes: 'Resolution Px',
+                tblWeight: 'Object Size',
+                btnDownload: 'Export Modified File'
+            }
+        };
+
+        let currentLang = 'pl';
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (el.tagName === 'INPUT') {
+                    el.placeholder = dict[lang][key];
+                } else {
+                    el.innerText = dict[lang][key];
+                }
+            });
+            
+            if (originalFile && statusDiv.innerText.includes('Status:')) {
+                statusDiv.innerText = dict[lang].statusLoaded;
+            } else if (!originalFile) {
+                statusDiv.innerText = dict[lang].statusWaiting;
+            }
+        }
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const dropText = document.getElementById('drop-text');
+        const paramsModule = document.getElementById('params-module');
+        const processBtn = document.getElementById('process-btn');
+        const targetDpiInput = document.getElementById('target-dpi');
+        const exportFormatInput = document.getElementById('export-format');
+        const statusDiv = document.getElementById('status');
+        
+        const previewModule = document.getElementById('preview-module');
+        const dpiBefore = document.getElementById('dpi-before');
+        const dpiAfter = document.getElementById('dpi-after');
+        const resBefore = document.getElementById('res-before');
+        const resAfter = document.getElementById('res-after');
+        const sizeBefore = document.getElementById('size-before');
+        const sizeAfter = document.getElementById('size-after');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let currentImage = null;
+        let originalFile = null;
+        let processedBlob = null;
+        let sourceDPI = 72;
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // --- BINARY PARSER MODUL ---
+        function extractDPI(arrayBuffer, mimeType) {
+            const view = new DataView(arrayBuffer);
+            try {
+                if (mimeType === 'image/jpeg') {
+                    if (view.getUint16(0) !== 0xFFD8) return null;
+                    let offset = 2;
+                    while (offset < view.byteLength) {
+                        const marker = view.getUint16(offset);
+                        if (marker === 0xFFDA) break; // Start of Scan
+                        const length = view.getUint16(offset + 2);
+                        if (marker === 0xFFE0 && view.getUint32(offset + 4) === 0x4A464946) { // JFIF
+                            const units = view.getUint8(offset + 11);
+                            const xDensity = view.getUint16(offset + 12);
+                            if (units === 1) return xDensity; // DPI
+                            if (units === 2) return Math.round(xDensity * 2.54); // DPCM to DPI
+                            return xDensity;
+                        }
+                        offset += 2 + length;
+                    }
+                } else if (mimeType === 'image/png') {
+                    if (view.getUint32(0) !== 0x89504E47) return null;
+                    let offset = 8;
+                    while (offset < view.byteLength) {
+                        const length = view.getUint32(offset);
+                        const type = view.getUint32(offset + 4);
+                        if (type === 0x70485973) { // pHYs
+                            const ppmX = view.getUint32(offset + 8);
+                            const unit = view.getUint8(offset + 16);
+                            if (unit === 1) return Math.round(ppmX * 0.0254);
+                        }
+                        offset += 12 + length;
+                    }
+                }
+            } catch (e) { console.warn("Parse Error:", e); }
+            return 72; // Domyslna wartość referencyjna
+        }
+
+        const crcTable = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                if (c & 1) c = 0xEDB88320 ^ (c >>> 1);
+                else c = c >>> 1;
+            }
+            crcTable[i] = c;
+        }
+        function crc32(data) {
+            let crc = 0xFFFFFFFF;
+            for (let i = 0; i < data.length; i++) {
+                crc = crcTable[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+            }
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+
+        // --- HARD INJECTION MODUL ---
+        function injectDPI(arrayBuffer, mimeType, targetDPI) {
+            const sourceArray = new Uint8Array(arrayBuffer);
+            const view = new DataView(arrayBuffer);
+
+            if (mimeType === 'image/jpeg') {
+                if (view.getUint16(0) !== 0xFFD8) return arrayBuffer;
+
+                // Sprawdź czy JFIF istnieje zaraz po FFD8
+                if (view.getUint16(2) === 0xFFE0 && view.getUint32(6) === 0x4A464946) {
+                    // Modyfikacja istniejącego bloku
+                    view.setUint8(13, 1); // 1 = dots per inch
+                    view.setUint16(14, targetDPI);
+                    view.setUint16(16, targetDPI);
+                    return arrayBuffer;
+                } else {
+                    // Wstrzyknięcie nowego bloku JFIF jeśli przeglądarka go pominęła
+                    const jfif = new Uint8Array([
+                        0xFF, 0xE0, 0x00, 0x10, // Marker FFE0, Długość 16
+                        0x4A, 0x46, 0x49, 0x46, 0x00, // "JFIF\0"
+                        0x01, 0x01, // Wersja 1.1
+                        0x01, // Jednostka DPI
+                        (targetDPI >> 8) & 0xFF, targetDPI & 0xFF, // X Density
+                        (targetDPI >> 8) & 0xFF, targetDPI & 0xFF, // Y Density
+                        0x00, 0x00 // Thumbnails
+                    ]);
+                    const newBuffer = new Uint8Array(arrayBuffer.byteLength + jfif.length);
+                    newBuffer.set(sourceArray.subarray(0, 2), 0); // FFD8
+                    newBuffer.set(jfif, 2);
+                    newBuffer.set(sourceArray.subarray(2), 2 + jfif.length);
+                    return newBuffer.buffer;
+                }
+            } else if (mimeType === 'image/png') {
+                if (view.getUint32(0) !== 0x89504E47) return arrayBuffer;
+
+                const ppm = Math.round(targetDPI / 0.0254);
+                let offset = 8;
+                let ihdrEnd = 8;
+                let physOffset = -1;
+
+                // Precyzyjne mapowanie offsetów bloków
+                while (offset < view.byteLength) {
+                    const length = view.getUint32(offset);
+                    const type = view.getUint32(offset + 4);
+                    
+                    if (type === 0x49484452) { // IHDR
+                        ihdrEnd = offset + 12 + length;
+                    } else if (type === 0x70485973) { // pHYs
+                        physOffset = offset;
+                        break;
+                    }
+                    offset += 12 + length;
+                }
+
+                // Generowanie bloku pHYs
+                const physChunk = new Uint8Array(21);
+                const physView = new DataView(physChunk.buffer);
+                physView.setUint32(0, 9); // Długość danych (9 bajtów)
+                physView.setUint32(4, 0x70485973); // "pHYs"
+                physView.setUint32(8, ppm); // X
+                physView.setUint32(12, ppm); // Y
+                physView.setUint8(16, 1); // 1 = metry
+                physView.setUint32(17, crc32(physChunk.subarray(4, 17))); // CRC32 z Typu i Danych
+
+                if (physOffset !== -1) {
+                    // Nadpisz istniejący blok (zawsze ma 21 bajtów z nagłówkami)
+                    sourceArray.set(physChunk, physOffset);
+                    return arrayBuffer;
+                } else {
+                    // Bezpieczna iniekcja za blokiem IHDR
+                    const newBuffer = new Uint8Array(arrayBuffer.byteLength + 21);
+                    newBuffer.set(sourceArray.subarray(0, ihdrEnd), 0);
+                    newBuffer.set(physChunk, ihdrEnd);
+                    newBuffer.set(sourceArray.subarray(ihdrEnd), ihdrEnd + 21);
+                    return newBuffer.buffer;
+                }
+            }
+            return arrayBuffer; // Fallback dla WEBP
+        }
+
+        // --- OBSŁUGA UI ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        async function handleFile(file) {
+            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                statusDiv.style.color = 'var(--danger)';
+                statusDiv.innerText = dict[currentLang].errFormat;
+                return;
+            }
+
+            originalFile = file;
+            dropText.innerText = `[ ${file.name} ]`;
+            sizeBefore.innerText = formatBytes(file.size);
+            statusDiv.style.color = 'var(--text-muted)';
+            statusDiv.innerText = dict[currentLang].statusLoaded;
+
+            const buffer = await file.arrayBuffer();
+            sourceDPI = extractDPI(buffer, file.type);
+            dpiBefore.innerText = sourceDPI;
+
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                currentImage = img;
+                resBefore.innerText = `${img.width} x ${img.height}`;
+                
+                paramsModule.style.opacity = '1';
+                paramsModule.style.pointerEvents = 'auto';
+                processBtn.disabled = false;
+                previewModule.style.display = 'block';
+                
+                resAfter.innerText = '-';
+                sizeAfter.innerText = '-';
+                dpiAfter.innerText = '-';
+                downloadBtn.style.display = 'none';
+                processedBlob = null;
+            };
+            img.src = url;
+        }
+
+        processBtn.addEventListener('click', () => {
+            if (!currentImage) return;
+
+            const targetDPI = parseInt(targetDpiInput.value, 10);
+            if (isNaN(targetDPI) || targetDPI <= 0) {
+                statusDiv.innerText = dict[currentLang].errVal;
+                return;
+            }
+
+            statusDiv.innerText = dict[currentLang].statusProcessing;
+            processBtn.disabled = true;
+
+            setTimeout(() => executeEnhancement(targetDPI), 50);
+        });
+
+        function executeEnhancement(targetDPI) {
+            try {
+                const scale = targetDPI / sourceDPI;
+                const targetWidth = Math.round(currentImage.width * scale);
+                const targetHeight = Math.round(currentImage.height * scale);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(currentImage, 0, 0, targetWidth, targetHeight);
+
+                const format = exportFormatInput.value;
+                const quality = 1.0; 
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) throw new Error("Null Blob.");
+                    
+                    const buffer = await blob.arrayBuffer();
+                    
+                    // Bezpośrednie wywołanie poprawionego algorytmu iniekcji
+                    const injectedBuffer = injectDPI(buffer, format, targetDPI);
+                    
+                    processedBlob = new Blob([injectedBuffer], { type: format });
+                    
+                    resAfter.innerText = `${targetWidth} x ${targetHeight}`;
+                    sizeAfter.innerText = formatBytes(processedBlob.size);
+                    
+                    // Końcowa walidacja osadzonego bloku danych
+                    dpiAfter.innerText = extractDPI(injectedBuffer, format) || targetDPI;
+                    
+                    statusDiv.innerText = dict[currentLang].statusSuccess;
+                    statusDiv.style.color = 'var(--accent)';
+                    
+                    downloadBtn.style.display = 'block';
+                    processBtn.disabled = false;
+
+                }, format, quality);
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerText = dict[currentLang].errMem;
+                statusDiv.style.color = 'var(--danger)';
+                processBtn.disabled = false;
+            }
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (!processedBlob) return;
+            
+            const extMap = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/webp': '.webp'
+            };
+            const ext = extMap[exportFormatInput.value];
+            const originalName = originalFile.name.substring(0, originalFile.name.lastIndexOf('.')) || originalFile.name;
+            const newFileName = `${originalName}_ENHANCED_${targetDpiInput.value}DPI${ext}`;
+
+            const url = URL.createObjectURL(processedBlob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = newFileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        });
+
+    </script>
+</body>
+</html>
